@@ -4,7 +4,7 @@ A classroom-friendly location game for exploring optimization on a `50x50` grid.
 
 View thw site at:
 
-`https://dheeptharai.github.io/GridQuest/`
+`[https://dheeptharai.github.io/GridQuest/](Live GridQuest link)`
 
 ## Notes
 
