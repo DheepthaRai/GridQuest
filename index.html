@@ -1,0 +1,2007 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GridQuest: Optimization Studio</title>
+  <style>
+    :root {
+      --bg-top: #fff7eb;
+      --bg-bottom: #f3ede4;
+      --panel: rgba(255, 252, 246, 0.84);
+      --panel-strong: rgba(255, 253, 249, 0.95);
+      --panel-solid: rgba(255, 252, 246, 0.96);
+      --ink: #193540;
+      --muted: #617780;
+      --accent: #ff6f3c;
+      --accent-deep: #db4d20;
+      --accent-soft: rgba(255, 111, 60, 0.14);
+      --teal: #1d9a8a;
+      --teal-soft: rgba(29, 154, 138, 0.16);
+      --gold: #f2c14e;
+      --rose: #d3467a;
+      --line: rgba(25, 53, 64, 0.12);
+      --shadow: 0 28px 72px rgba(25, 53, 64, 0.16);
+      --border: rgba(25, 53, 64, 0.08);
+      --surface-soft: rgba(25, 53, 64, 0.05);
+      --surface-mid: rgba(25, 53, 64, 0.08);
+      --white-glow: rgba(255, 255, 255, 0.86);
+      --tooltip-bg: rgba(255, 252, 246, 0.94);
+      --grid-overlay: rgba(255, 255, 255, 0.7);
+      --board-wrap-bg-top: rgba(255, 255, 255, 0.8);
+      --board-wrap-bg-bottom: rgba(255, 251, 245, 0.72);
+      --cell-size: min(1.3vw, 12px);
+    }
+
+    html[data-theme="dark"] {
+      --bg-top: #0f1820;
+      --bg-bottom: #111f29;
+      --panel: rgba(18, 31, 41, 0.9);
+      --panel-strong: rgba(20, 35, 46, 0.96);
+      --panel-solid: rgba(20, 35, 46, 0.98);
+      --ink: #e8f2f5;
+      --muted: #a5bac2;
+      --accent: #ff8b5e;
+      --accent-deep: #f05d2a;
+      --accent-soft: rgba(255, 139, 94, 0.18);
+      --teal: #45c8b7;
+      --teal-soft: rgba(69, 200, 183, 0.18);
+      --gold: #f6c86e;
+      --rose: #ff7cab;
+      --line: rgba(232, 242, 245, 0.12);
+      --shadow: 0 28px 72px rgba(0, 0, 0, 0.34);
+      --border: rgba(232, 242, 245, 0.09);
+      --surface-soft: rgba(232, 242, 245, 0.08);
+      --surface-mid: rgba(232, 242, 245, 0.1);
+      --white-glow: rgba(255, 255, 255, 0.06);
+      --tooltip-bg: rgba(17, 30, 40, 0.96);
+      --grid-overlay: rgba(255, 255, 255, 0.06);
+      --board-wrap-bg-top: rgba(255, 255, 255, 0.03);
+      --board-wrap-bg-bottom: rgba(255, 255, 255, 0.01);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 15% 10%, rgba(242, 193, 78, 0.34), transparent 20%),
+        radial-gradient(circle at 90% 14%, rgba(29, 154, 138, 0.24), transparent 22%),
+        radial-gradient(circle at 20% 88%, rgba(211, 70, 122, 0.14), transparent 18%),
+        linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+      overflow-x: hidden;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      border-radius: 999px;
+      filter: blur(18px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::before {
+      width: 260px;
+      height: 260px;
+      background: rgba(255, 111, 60, 0.12);
+      top: -80px;
+      right: -80px;
+    }
+
+    body::after {
+      width: 240px;
+      height: 240px;
+      background: rgba(29, 154, 138, 0.12);
+      left: -80px;
+      bottom: 30px;
+    }
+
+    .shell {
+      position: relative;
+      z-index: 1;
+      max-width: 1450px;
+      margin: 0 auto;
+      padding: 28px 22px 34px;
+    }
+
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
+    .title-wrap h1 {
+      margin: 0;
+      font-size: clamp(2.35rem, 5vw, 4.6rem);
+      line-height: 0.92;
+      letter-spacing: -0.05em;
+    }
+
+    .title-wrap p {
+      max-width: 760px;
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 1.02rem;
+      line-height: 1.45;
+    }
+
+    .pill,
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--panel-solid);
+      box-shadow: 0 10px 24px rgba(25, 53, 64, 0.08);
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .hero-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: end;
+      gap: 10px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 395px) minmax(0, 1fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 30px;
+      box-shadow: var(--shadow);
+    }
+
+    .sidebar {
+      padding: 20px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .metric {
+      padding: 15px;
+      border-radius: 22px;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--white-glow), var(--panel));
+    }
+
+    .metric .label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.75rem;
+      font-weight: 800;
+    }
+
+    .metric .value {
+      font-size: 1.45rem;
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -0.03em;
+    }
+
+    .metric .subtext {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .card {
+      padding: 18px;
+      background: var(--panel-strong);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+    }
+
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .card p,
+    .card li,
+    .card label {
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .card ul {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .controls {
+      display: grid;
+      gap: 12px;
+    }
+
+    .objective-card {
+      background: linear-gradient(135deg, var(--accent-soft), var(--teal-soft));
+    }
+
+    .objective-formula {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: var(--panel-solid);
+      color: var(--ink);
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+
+    .accordion {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .accordion summary {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 18px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .accordion summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .accordion summary h2 {
+      margin: 0;
+    }
+
+    .accordion-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: var(--surface-soft);
+      color: var(--ink);
+      font-weight: 900;
+      transition: transform 160ms ease, background 160ms ease;
+    }
+
+    .accordion[open] .accordion-icon {
+      transform: rotate(180deg);
+      background: var(--accent-soft);
+    }
+
+    .accordion-body {
+      padding: 0 18px 18px;
+    }
+
+    .button-row,
+    .input-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    button,
+    select,
+    input {
+      appearance: none;
+      border: 0;
+      font: inherit;
+    }
+
+    button {
+      border-radius: 15px;
+      padding: 12px 15px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      transform: none;
+      filter: none;
+      opacity: 0.72;
+      box-shadow: none;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      filter: saturate(1.03);
+    }
+
+    button:disabled:hover,
+    button:disabled:active {
+      transform: none;
+      filter: none;
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    .primary {
+      color: white;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%);
+      box-shadow: 0 14px 24px rgba(219, 77, 32, 0.24);
+    }
+
+    .secondary {
+      color: var(--ink);
+      background: var(--surface-mid);
+    }
+
+    .glow {
+      color: white;
+      background: linear-gradient(135deg, #1d9a8a 0%, #177262 100%);
+      box-shadow: 0 14px 24px rgba(29, 154, 138, 0.22);
+    }
+
+    .glow:disabled {
+      color: var(--ink);
+      background: var(--surface-mid);
+      border: 1px solid var(--border);
+      white-space: normal;
+      line-height: 1.3;
+    }
+
+    .select-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 15px;
+      border: 1px solid var(--border);
+      background: var(--panel-solid);
+    }
+
+    select {
+      background: transparent;
+      color: var(--ink);
+      font-weight: 800;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .select-wrap input {
+      width: 84px;
+      background: transparent;
+      color: var(--ink);
+      font-weight: 800;
+      outline: none;
+    }
+
+    .reaction-card {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 14px;
+      align-items: center;
+      background: linear-gradient(135deg, rgba(255, 111, 60, 0.1), rgba(29, 154, 138, 0.12));
+    }
+
+    .reaction-emoji {
+      width: 64px;
+      height: 64px;
+      border-radius: 20px;
+      display: grid;
+      place-items: center;
+      font-size: 2rem;
+      background: var(--white-glow);
+      box-shadow: inset 0 0 0 1px var(--border);
+    }
+
+    .reaction-text strong {
+      display: block;
+      font-size: 1.05rem;
+      margin-bottom: 4px;
+      color: var(--ink);
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      color: var(--ink);
+      font-weight: 700;
+      background: linear-gradient(135deg, rgba(29, 154, 138, 0.12), rgba(242, 193, 78, 0.18));
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: var(--teal);
+      box-shadow: 0 0 0 6px rgba(29, 154, 138, 0.12);
+      flex: 0 0 auto;
+    }
+
+    .nearest-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .nearest-item {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: var(--surface-soft);
+      font-size: 0.92rem;
+      color: var(--ink);
+      text-align: left;
+    }
+
+    .nearest-item strong {
+      color: var(--ink);
+    }
+
+    .nearest-item.active {
+      background: linear-gradient(135deg, var(--accent-soft), var(--teal-soft));
+      border-color: rgba(29, 154, 138, 0.28);
+    }
+
+    .nearest-item-meta {
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.35;
+    }
+
+    .board-panel {
+      padding: 18px;
+    }
+
+    .board-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(260px, 320px);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .board-main {
+      min-width: 0;
+    }
+
+    .board-side {
+      display: grid;
+      gap: 14px;
+      align-self: stretch;
+    }
+
+    .board-topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .board-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .zoom-controls {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--panel-solid);
+      box-shadow: 0 10px 24px rgba(25, 53, 64, 0.08);
+    }
+
+    .zoom-controls button {
+      min-width: 36px;
+      min-height: 36px;
+      padding: 0 10px;
+      border-radius: 12px;
+      background: var(--surface-mid);
+      color: var(--ink);
+      box-shadow: none;
+    }
+
+    .zoom-readout {
+      min-width: 56px;
+      text-align: center;
+      color: var(--ink);
+      font-weight: 900;
+      letter-spacing: -0.02em;
+    }
+
+    .legend {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .legend-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+    }
+
+    .swatch-demand {
+      background: radial-gradient(circle at 35% 35%, #fff3b8, var(--gold) 70%);
+      border: 1px solid rgba(25, 53, 64, 0.14);
+    }
+
+    .swatch-nearest {
+      background: linear-gradient(135deg, #ff7b8a, #bf2b62);
+    }
+
+    .swatch-cluster {
+      background: linear-gradient(135deg, #89e3d7, #1d9a8a);
+    }
+
+    .swatch-facility {
+      background: linear-gradient(135deg, #ff5f6d, #8e214c);
+      clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    }
+
+    .board-wrap {
+      position: relative;
+      overflow: auto;
+      border-radius: 26px;
+      padding: 18px;
+      border: 1px solid var(--border);
+      background:
+        linear-gradient(180deg, var(--board-wrap-bg-top), var(--board-wrap-bg-bottom)),
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.18), transparent 30%);
+    }
+
+    .board {
+      position: relative;
+      width: calc(var(--cell-size) * 50);
+      height: calc(var(--cell-size) * 50);
+      min-width: 500px;
+      min-height: 500px;
+      border-radius: 20px;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, var(--grid-overlay), rgba(255,255,255,0.02)),
+        repeating-linear-gradient(0deg, var(--line) 0 1px, transparent 1px calc(var(--cell-size))),
+        repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px calc(var(--cell-size))),
+        linear-gradient(135deg, rgba(255, 111, 60, 0.04), rgba(29, 154, 138, 0.04));
+      cursor: crosshair;
+      touch-action: none;
+      box-shadow: inset 0 0 0 1px var(--border);
+    }
+
+    .axis-label {
+      position: absolute;
+      color: rgba(25, 53, 64, 0.28);
+      font-size: 0.72rem;
+      font-weight: 800;
+      user-select: none;
+    }
+
+    .axis-label.x {
+      top: -20px;
+      transform: translateX(-50%);
+    }
+
+    .axis-label.y {
+      left: -22px;
+      transform: translateY(50%);
+    }
+
+    .point {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+      user-select: none;
+      transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+    }
+
+    .point::after {
+      content: none;
+    }
+
+    .point.demand {
+      width: clamp(10px, calc(var(--cell-size) * 0.82), 16px);
+      height: clamp(10px, calc(var(--cell-size) * 0.82), 16px);
+      border-radius: 999px;
+      background: radial-gradient(circle at 35% 35%, #fff7d9 0%, var(--gold) 68%, #d49313 100%);
+      box-shadow: 0 2px 8px rgba(212, 147, 19, 0.24);
+      color: rgba(25, 53, 64, 0.9);
+      font-size: clamp(7px, calc(var(--cell-size) * 0.42), 9px);
+      font-weight: 900;
+    }
+
+    .point.demand.assigned-0 {
+      background: radial-gradient(circle at 35% 35%, #ffe4ea 0%, #ff9db0 62%, #d94872 100%);
+      box-shadow: 0 0 0 3px rgba(255, 123, 138, 0.28), 0 4px 10px rgba(217, 72, 114, 0.28);
+      color: #4c1126;
+    }
+
+    .point.demand.assigned-1 {
+      background: radial-gradient(circle at 35% 35%, #dcfff8 0%, #83e4d8 62%, #23a694 100%);
+      box-shadow: 0 0 0 3px rgba(29, 154, 138, 0.28), 0 4px 10px rgba(29, 154, 138, 0.28);
+      color: #093730;
+    }
+
+    .point.demand.assigned-2 {
+      background: radial-gradient(circle at 35% 35%, #e6eeff 0%, #9ab8ff 62%, #4d73da 100%);
+      box-shadow: 0 0 0 3px rgba(94, 139, 255, 0.28), 0 4px 10px rgba(77, 115, 218, 0.28);
+      color: #102454;
+    }
+
+    .point.demand.uncovered {
+      opacity: 0.35;
+      filter: saturate(0.7);
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+    }
+
+    .point.demand.covered {
+      transform: translate(-50%, -50%) scale(1.08);
+    }
+
+    .point.demand.served-point {
+      transform: translate(-50%, -50%) scale(1.34);
+      z-index: 2;
+      box-shadow:
+        0 0 0 3px rgba(255, 255, 255, 0.94),
+        0 0 0 7px rgba(255, 255, 255, 0.18),
+        0 10px 20px rgba(0, 0, 0, 0.22);
+      filter: saturate(1.14) brightness(1.04);
+    }
+
+    .point.demand.served-point::after {
+      content: attr(data-facility);
+      position: absolute;
+      top: -12px;
+      right: -11px;
+      min-width: 14px;
+      height: 14px;
+      padding: 0 3px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: rgba(18, 28, 38, 0.92);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.82);
+      font-size: 9px;
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: 0.01em;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.22);
+    }
+
+    html[data-theme="light"] .point.demand.served-point::after {
+      background: rgba(25, 53, 64, 0.9);
+    }
+
+    .point.demand.served-point.assigned-0::after {
+      background: #b81d57;
+    }
+
+    .point.demand.served-point.assigned-1::after {
+      background: #18786d;
+    }
+
+    .point.demand.served-point.assigned-2::after {
+      background: #345dc9;
+    }
+
+    .point.demand.served-point.single-mode::after {
+      background: #946200;
+      color: #fffdf2;
+    }
+
+    .point.demand.single-mode {
+      background: radial-gradient(circle at 35% 35%, #fff7d9 0%, var(--gold) 68%, #d49313 100%);
+      box-shadow: 0 2px 8px rgba(212, 147, 19, 0.24);
+      color: rgba(25, 53, 64, 0.9);
+    }
+
+    .point.demand.nearest-primary {
+      transform: translate(-50%, -50%) scale(1.42);
+      background: radial-gradient(circle at 35% 35%, #d9fff4 0%, #52cfb3 70%, #179a8a 100%);
+      box-shadow: 0 0 0 6px rgba(29, 154, 138, 0.15), 0 10px 22px rgba(29, 154, 138, 0.28);
+    }
+
+    .point.demand.nearest-secondary {
+      transform: translate(-50%, -50%) scale(1.18);
+      background: radial-gradient(circle at 35% 35%, #eefdf9 0%, #95e7d5 72%, #3daea1 100%);
+      box-shadow: 0 0 0 4px rgba(29, 154, 138, 0.1), 0 8px 18px rgba(29, 154, 138, 0.18);
+    }
+
+    .point.facility-marker {
+      width: clamp(24px, calc(var(--cell-size) * 1.6), 30px);
+      height: clamp(24px, calc(var(--cell-size) * 1.6), 30px);
+      z-index: 3;
+      pointer-events: auto;
+      cursor: grab;
+      filter: drop-shadow(0 10px 14px rgba(142, 33, 76, 0.24));
+    }
+
+    .point.facility-marker.active {
+      transform: translate(-50%, -50%) scale(1.18);
+    }
+
+    .point.facility-marker.active .facility-shape {
+      box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.14);
+    }
+
+    .point.facility-marker.facility-0 .facility-shape {
+      background: linear-gradient(135deg, #ff6c81 0%, #b81d57 100%);
+    }
+
+    .point.facility-marker.facility-1 .facility-shape {
+      background: linear-gradient(135deg, #2ed4c5 0%, #18786d 100%);
+    }
+
+    .point.facility-marker.facility-2 .facility-shape {
+      background: linear-gradient(135deg, #7ca8ff 0%, #345dc9 100%);
+    }
+
+    .facility-shape {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      color: white;
+      font-size: 1rem;
+      font-weight: 1000;
+      letter-spacing: -0.04em;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+      border-radius: 10px;
+      clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+      border: 3px solid rgba(255, 255, 255, 0.92);
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+      background: linear-gradient(135deg, #ff5f6d 0%, #b91f56 100%);
+    }
+
+    .line {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .tooltip {
+      position: absolute;
+      right: 18px;
+      bottom: 18px;
+      max-width: 300px;
+      padding: 13px 15px;
+      border-radius: 20px;
+      background: var(--tooltip-bg);
+      border: 1px solid var(--border);
+      box-shadow: 0 18px 30px rgba(25, 53, 64, 0.12);
+      color: var(--ink);
+      font-size: 0.93rem;
+      line-height: 1.35;
+    }
+
+    .board-side .tooltip {
+      position: static;
+      right: auto;
+      bottom: auto;
+      max-width: none;
+      margin: 0;
+    }
+
+    .footer-note {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .objective-context {
+      margin-top: 16px;
+      padding: 18px 20px;
+      border-radius: 22px;
+      border: 1px solid var(--border);
+      background: linear-gradient(135deg, var(--accent-soft), rgba(255, 255, 255, 0.02), var(--teal-soft));
+    }
+
+    .objective-context h3 {
+      margin: 0 0 10px;
+      font-size: 1.05rem;
+      letter-spacing: -0.02em;
+    }
+
+    .objective-context p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+      max-width: 920px;
+    }
+
+    .status.compact {
+      min-height: 100%;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        flex-direction: column;
+        align-items: start;
+      }
+
+      .hero-stack {
+        align-items: start;
+      }
+
+      .board-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .shell {
+        padding: 18px 14px 28px;
+      }
+
+      .metrics {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .board-wrap {
+        padding: 14px;
+      }
+
+      .tooltip {
+        position: static;
+        margin-top: 12px;
+        max-width: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="title-wrap">
+        <div class="pill">Optimization Studio • Classroom-Friendly Location Game</div>
+        <h1>GridQuest</h1>
+        <p>
+          Choose a 1-facility or 3-facility layout, drag the sites around the 50x50 grid, and watch the
+          weighted service score update in real time. Then compare your layout against the optimized one.
+        </p>
+      </div>
+      <div class="hero-stack">
+        <div class="badge" id="moodBadge">Exploration mode</div>
+        <div class="badge" id="reactionBadge">🙂 Cluster comfort</div>
+        <button class="secondary" id="themeToggle" type="button">Dark Mode</button>
+      </div>
+    </section>
+
+    <section class="layout">
+      <aside class="panel sidebar">
+        <div class="metrics">
+          <article class="metric">
+            <span class="label">Facility Mode</span>
+            <div class="value" id="facilityModeValue">1 facility</div>
+            <div class="subtext">Choose 1 or 3 sites</div>
+          </article>
+          <article class="metric">
+            <span class="label">Active Facility</span>
+            <div class="value" id="facilityCoord">A (25, 25)</div>
+            <div class="subtext">Drag this site on the grid</div>
+          </article>
+          <article class="metric">
+            <span class="label">Closest Demand</span>
+            <div class="value" id="nearestCoord">(?, ?)</div>
+            <div class="subtext">to active facility • value <span id="nearestWeight">-</span></div>
+          </article>
+          <article class="metric">
+            <span class="label">Objective Score</span>
+            <div class="value" id="clusterScore">0.00</div>
+            <div class="subtext" id="clusterScoreSubtext">objective value under assignment and capacity</div>
+          </article>
+          <article class="metric">
+            <span class="label">Closest Distance</span>
+            <div class="value" id="nearestDistance">0.00</div>
+            <div class="subtext">from active facility</div>
+          </article>
+        </div>
+
+        <section class="card objective-card">
+          <h2>Optimization Objective</h2>
+          <p id="objectiveSummary">
+            The app is minimizing the weighted distance from each demand point to its closest facility.
+          </p>
+          <div class="objective-formula" id="objectiveFormula">
+            Minimize: sum over all demand points of (demand value × distance to nearest facility)
+          </div>
+        </section>
+
+        <details class="card accordion" open>
+          <summary>
+            <h2>How It Calculates</h2>
+            <span class="accordion-icon">⌄</span>
+          </summary>
+          <div class="accordion-body">
+            <ul>
+              <li>Step 1: For every demand point, find the closest facility.</li>
+              <li>Step 2: Respect capacity, so a facility can only absorb demand up to the chosen limit.</li>
+              <li>Step 3: Compute the selected objective using the served assignments.</li>
+              <li>For `1 facility`, the app checks every integer grid point from `(0,0)` to `(50,50)`.</li>
+              <li>For `3 facilities`, the app checks every triple of demand-point candidate locations and picks the best total score.</li>
+            </ul>
+          </div>
+        </details>
+
+        <section class="card">
+          <h2>Facility Controls</h2>
+          <div class="controls">
+            <div class="input-row">
+              <div class="select-wrap">
+                <label for="facilityCount">Locate</label>
+                <select id="facilityCount">
+                  <option value="1" selected>1 facility</option>
+                  <option value="3">3 facilities</option>
+                </select>
+              </div>
+              <div class="select-wrap">
+                <label for="objectiveMode">Objective</label>
+                <select id="objectiveMode">
+                  <option value="weighted_sum" selected>Efficiency</option>
+                  <option value="max_distance">Fairness</option>
+                  <option value="coverage">Coverage</option>
+                </select>
+              </div>
+              <div class="select-wrap">
+                <label for="mappedPointCount">Serve points</label>
+                <select id="mappedPointCount">
+                  <option value="1">1 point</option>
+                  <option value="3" selected>3 points</option>
+                  <option value="5">5 points</option>
+                  <option value="10">10 points</option>
+                </select>
+              </div>
+              <div class="select-wrap">
+                <label for="facilityCapacity">Capacity</label>
+                <input id="facilityCapacity" type="number" min="1" step="1" value="180" />
+              </div>
+            </div>
+            <div class="button-row">
+              <button class="glow" id="optimizeBtn">Show Optimal 1-Facility Layout</button>
+              <button class="primary" id="shuffleBtn">New Map</button>
+              <button class="secondary" id="centerBtn">Center Layout</button>
+            </div>
+          </div>
+        </section>
+
+        <details class="card accordion">
+          <summary>
+            <h2>How to Use It</h2>
+            <span class="accordion-icon">⌄</span>
+          </summary>
+          <div class="accordion-body">
+            <ul>
+              <li>Pick `1 facility` or `3 facilities` from the control panel.</li>
+              <li>Drag a facility marker directly, or select a facility in the list and click the board to reposition it.</li>
+              <li>Every demand point is scored against its closest facility, weighted by its demand value.</li>
+              <li>`Show Optimal` reveals the best 1-site layout, or the best 3-site layout over all demand-point candidate sites.</li>
+            </ul>
+          </div>
+        </details>
+
+      </aside>
+
+      <section class="panel board-panel">
+        <div class="board-topbar">
+          <div class="legend">
+            <span class="legend-item"><span class="legend-swatch swatch-demand"></span>Demand dot</span>
+            <span class="legend-item"><span class="legend-swatch swatch-nearest"></span>Active facility</span>
+            <span class="legend-item"><span class="legend-swatch swatch-cluster"></span>Assigned demand color</span>
+            <span class="legend-item"><span class="legend-swatch swatch-facility"></span>Facility marker</span>
+          </div>
+          <div class="board-actions">
+            <div class="badge">100 demand points • values 1-9 • closest-facility assignment</div>
+            <div class="zoom-controls" aria-label="Board zoom controls">
+              <button class="secondary" id="zoomOutBtn" type="button" aria-label="Zoom out">-</button>
+              <div class="zoom-readout" id="zoomReadout">100%</div>
+              <button class="secondary" id="zoomInBtn" type="button" aria-label="Zoom in">+</button>
+              <button class="secondary" id="zoomResetBtn" type="button">Reset</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="board-layout">
+          <div class="board-main">
+            <div class="board-wrap">
+              <div class="board" id="board" aria-label="50 by 50 optimization grid"></div>
+            </div>
+          </div>
+          <div class="board-side">
+            <section class="card reaction-card">
+              <div class="reaction-emoji" id="reactionEmoji">🙂</div>
+              <div class="reaction-text">
+                <strong id="reactionTitle">Nice start</strong>
+                <div id="reactionCopy">You are reasonably close to your selected cluster.</div>
+              </div>
+            </section>
+
+            <section class="status compact" id="statusMessage">
+              <span class="status-dot"></span>
+              <span>Warm start: the board is ready for exploration.</span>
+            </section>
+
+            <details class="card accordion" open>
+              <summary>
+                <h2>Facilities</h2>
+                <span class="accordion-icon">⌄</span>
+              </summary>
+              <div class="accordion-body">
+                <p id="clusterSummary">A demand point is assigned to whichever facility is closest.</p>
+                <div class="nearest-list" id="nearestList"></div>
+              </div>
+            </details>
+
+            <div class="tooltip" id="tooltip">
+              Drag facilities to see the weighted score change. Each demand point is assigned to the closest facility.
+            </div>
+          </div>
+        </div>
+
+        <div class="footer-note">
+          Teaching angle: compare the best 1-facility layout against the best 3-facility layout and discuss how service improves when facilities are added.
+        </div>
+
+        <section class="objective-context">
+          <h3 id="objectiveContextTitle">What This Objective Means</h3>
+          <p id="objectiveContextCopy">
+            Choose an objective to see what it means in context for one facility or for three facilities.
+          </p>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const GRID_MAX = 50;
+    const DEMAND_COUNT = 100;
+    const FACILITY_LABELS = ["A", "B", "C"];
+    const COVERAGE_RADIUS = 8;
+    const UNSERVED_DISTANCE_PENALTY = 200;
+
+    const board = document.getElementById("board");
+    const shuffleBtn = document.getElementById("shuffleBtn");
+    const centerBtn = document.getElementById("centerBtn");
+    const optimizeBtn = document.getElementById("optimizeBtn");
+    const zoomOutBtn = document.getElementById("zoomOutBtn");
+    const zoomInBtn = document.getElementById("zoomInBtn");
+    const zoomResetBtn = document.getElementById("zoomResetBtn");
+    const zoomReadoutEl = document.getElementById("zoomReadout");
+    const themeToggle = document.getElementById("themeToggle");
+    const facilityCountSelect = document.getElementById("facilityCount");
+    const objectiveModeSelect = document.getElementById("objectiveMode");
+    const mappedPointCountSelect = document.getElementById("mappedPointCount");
+    const facilityCapacityInput = document.getElementById("facilityCapacity");
+    const facilityModeValueEl = document.getElementById("facilityModeValue");
+    const facilityCoordEl = document.getElementById("facilityCoord");
+    const nearestCoordEl = document.getElementById("nearestCoord");
+    const nearestWeightEl = document.getElementById("nearestWeight");
+    const nearestDistanceEl = document.getElementById("nearestDistance");
+    const clusterScoreEl = document.getElementById("clusterScore");
+    const clusterScoreSubtextEl = document.getElementById("clusterScoreSubtext");
+    const clusterSummaryEl = document.getElementById("clusterSummary");
+    const objectiveSummaryEl = document.getElementById("objectiveSummary");
+    const objectiveFormulaEl = document.getElementById("objectiveFormula");
+    const objectiveContextTitleEl = document.getElementById("objectiveContextTitle");
+    const objectiveContextCopyEl = document.getElementById("objectiveContextCopy");
+    const nearestListEl = document.getElementById("nearestList");
+    const statusMessageEl = document.getElementById("statusMessage");
+    const tooltipEl = document.getElementById("tooltip");
+    const moodBadgeEl = document.getElementById("moodBadge");
+    const reactionBadgeEl = document.getElementById("reactionBadge");
+    const reactionEmojiEl = document.getElementById("reactionEmoji");
+    const reactionTitleEl = document.getElementById("reactionTitle");
+    const reactionCopyEl = document.getElementById("reactionCopy");
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const root = document.documentElement;
+    const THEME_KEY = "gridquest-theme";
+    const BASE_CELL_SIZE = parseFloat(getComputedStyle(root).getPropertyValue("--cell-size")) || 12;
+    const MIN_ZOOM = 0.8;
+    const MAX_ZOOM = 2.4;
+    const ZOOM_STEP = 0.2;
+
+    let demandPoints = [];
+    let facilityCount = Number(facilityCountSelect.value);
+    let objectiveMode = objectiveModeSelect.value;
+    let mappedPointCount = Number(mappedPointCountSelect.value);
+    let facilityCapacity = Number(facilityCapacityInput.value);
+    let facilities = [];
+    let activeFacilityIndex = 0;
+    let draggingFacilityIndex = null;
+    let isDragging = false;
+    let optimalCache = {};
+    let boardZoom = 1;
+
+    const demandLayer = document.createElement("div");
+    const lineSvg = document.createElementNS(svgNS, "svg");
+    const facilityLayer = document.createElement("div");
+
+    demandLayer.style.position = "absolute";
+    demandLayer.style.inset = "0";
+    facilityLayer.style.position = "absolute";
+    facilityLayer.style.inset = "0";
+
+    lineSvg.setAttribute("class", "line");
+    lineSvg.setAttribute("width", "100%");
+    lineSvg.setAttribute("height", "100%");
+
+    board.appendChild(demandLayer);
+    board.appendChild(lineSvg);
+    board.appendChild(facilityLayer);
+
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function applyTheme(theme) {
+      root.dataset.theme = theme;
+      themeToggle.textContent = theme === "dark" ? "Light Mode" : "Dark Mode";
+    }
+
+    function applyBoardZoom() {
+      root.style.setProperty("--cell-size", `${(BASE_CELL_SIZE * boardZoom).toFixed(2)}px`);
+      zoomReadoutEl.textContent = `${Math.round(boardZoom * 100)}%`;
+    }
+
+    function initializeTheme() {
+      const savedTheme = localStorage.getItem(THEME_KEY);
+      const preferredDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      applyTheme(savedTheme || (preferredDark ? "dark" : "light"));
+    }
+
+    function pointToPercent(value) {
+      return (value / GRID_MAX) * 100;
+    }
+
+    function formatCoord(point) {
+      return `(${point.x}, ${point.y})`;
+    }
+
+    function distance(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    function setBoardZoom(nextZoom) {
+      boardZoom = clamp(Math.round(nextZoom * 100) / 100, MIN_ZOOM, MAX_ZOOM);
+      applyBoardZoom();
+    }
+
+    function positionFromPointer(event) {
+      const rect = board.getBoundingClientRect();
+      const relX = clamp(event.clientX - rect.left, 0, rect.width);
+      const relY = clamp(event.clientY - rect.top, 0, rect.height);
+      return {
+        x: Math.round((relX / rect.width) * GRID_MAX),
+        y: Math.round(((rect.height - relY) / rect.height) * GRID_MAX)
+      };
+    }
+
+    function createAxisLabels() {
+      const majorTicks = [0, 10, 20, 30, 40, 50];
+      majorTicks.forEach((tick) => {
+        const xLabel = document.createElement("div");
+        xLabel.className = "axis-label x";
+        xLabel.style.left = `${pointToPercent(tick)}%`;
+        xLabel.textContent = tick;
+        board.appendChild(xLabel);
+
+        const yLabel = document.createElement("div");
+        yLabel.className = "axis-label y";
+        yLabel.style.bottom = `${pointToPercent(tick)}%`;
+        yLabel.textContent = tick;
+        board.appendChild(yLabel);
+      });
+    }
+
+    function generateDemandPoints() {
+      const used = new Set();
+      const points = [];
+
+      while (points.length < DEMAND_COUNT) {
+        const x = randomInt(0, GRID_MAX);
+        const y = randomInt(0, GRID_MAX);
+        const key = `${x},${y}`;
+        if (used.has(key)) continue;
+        used.add(key);
+        points.push({ id: key, x, y, value: randomInt(1, 9) });
+      }
+
+      demandPoints = points;
+    }
+
+    function defaultFacilities(count) {
+      if (count === 1) {
+        return [{ x: 25, y: 25, label: "A" }];
+      }
+
+      return [
+        { x: 15, y: 25, label: "A" },
+        { x: 25, y: 25, label: "B" },
+        { x: 35, y: 25, label: "C" }
+      ];
+    }
+
+    function setFacilities(nextFacilities) {
+      facilities = nextFacilities.map((facility, index) => ({
+        x: clamp(facility.x, 0, GRID_MAX),
+        y: clamp(facility.y, 0, GRID_MAX),
+        label: FACILITY_LABELS[index]
+      }));
+      activeFacilityIndex = Math.min(activeFacilityIndex, facilities.length - 1);
+      refreshBoard();
+    }
+
+    function currentOptimalCacheKey() {
+      return `${objectiveMode}-${facilityCount}-${facilityCapacity}-${mappedPointCount}`;
+    }
+
+    function analyzeGreedyLayout(layout = facilities) {
+      const assignments = layout.map(() => ({ points: [], totalDemand: 0, usedCapacity: 0, remainingCapacity: facilityCapacity, remainingSlots: mappedPointCount }));
+      let weightedSum = 0;
+      let maxDistance = 0;
+      let coveredDemand = 0;
+      const unservedPoints = [];
+
+      const candidatePoints = demandPoints
+        .map((point) => {
+          const options = layout
+            .map((facility, index) => ({ index, dist: distance(point, facility) }))
+            .sort((a, b) => a.dist - b.dist);
+          const gap = options.length > 1 ? options[1].dist - options[0].dist : Infinity;
+          return { point, options, gap };
+        })
+        .sort((a, b) => b.gap - a.gap || b.point.value - a.point.value || a.options[0].dist - b.options[0].dist);
+
+      for (const item of candidatePoints) {
+        const option = item.options.find((candidate) => {
+          const assignment = assignments[candidate.index];
+          return assignment.remainingCapacity >= item.point.value && assignment.remainingSlots > 0;
+        });
+        if (!option) {
+          unservedPoints.push(item.point);
+          weightedSum += item.point.value * UNSERVED_DISTANCE_PENALTY;
+          maxDistance = Math.max(maxDistance, UNSERVED_DISTANCE_PENALTY);
+          continue;
+        }
+
+        assignments[option.index].points.push({
+          point: item.point,
+          dist: option.dist,
+          weightedDist: item.point.value * option.dist
+        });
+        assignments[option.index].totalDemand += item.point.value;
+        assignments[option.index].usedCapacity += item.point.value;
+        assignments[option.index].remainingCapacity -= item.point.value;
+        assignments[option.index].remainingSlots -= 1;
+        weightedSum += item.point.value * option.dist;
+        if (option.dist > maxDistance) maxDistance = option.dist;
+        if (option.dist <= COVERAGE_RADIUS) coveredDemand += item.point.value;
+      }
+
+      assignments.forEach((assignment) => {
+        assignment.points.sort((a, b) => a.dist - b.dist);
+      });
+
+      const unservedDemand = unservedPoints.reduce((sum, point) => sum + point.value, 0);
+      const score = objectiveMode === "weighted_sum"
+        ? weightedSum
+        : objectiveMode === "max_distance"
+          ? maxDistance + (unservedDemand * UNSERVED_DISTANCE_PENALTY)
+          : coveredDemand;
+
+      return { score, weightedSum, maxDistance, coveredDemand, assignments, unservedPoints, unservedDemand };
+    }
+
+    function solveKnapsack(items, capacity, valueForItem, exactCount = null) {
+      const itemCount = items.length;
+      const cappedCapacity = Math.max(0, Math.min(capacity, totalDemandAmount()));
+      const maxCount = exactCount === null ? itemCount : Math.min(exactCount, itemCount);
+      const dp = Array.from({ length: itemCount + 1 }, () =>
+        Array.from({ length: maxCount + 1 }, () => Array(cappedCapacity + 1).fill(-Infinity))
+      );
+      const took = Array.from({ length: itemCount + 1 }, () =>
+        Array.from({ length: maxCount + 1 }, () => Array(cappedCapacity + 1).fill(false))
+      );
+
+      dp[0][0][0] = 0;
+
+      for (let i = 0; i < itemCount; i += 1) {
+        const weight = items[i].point.value;
+        const benefit = valueForItem(items[i]);
+
+        for (let count = 0; count <= maxCount; count += 1) {
+          for (let used = 0; used <= cappedCapacity; used += 1) {
+            if (dp[i][count][used] === -Infinity) continue;
+
+            if (dp[i][count][used] > dp[i + 1][count][used]) {
+              dp[i + 1][count][used] = dp[i][count][used];
+            }
+
+            const nextUsed = used + weight;
+            const nextCount = count + 1;
+            if (nextUsed <= cappedCapacity && nextCount <= maxCount) {
+              const candidate = dp[i][count][used] + benefit;
+              if (candidate > dp[i + 1][nextCount][nextUsed]) {
+                dp[i + 1][nextCount][nextUsed] = candidate;
+                took[i + 1][nextCount][nextUsed] = true;
+              }
+            }
+          }
+        }
+      }
+
+      const candidateCounts = exactCount === null
+        ? Array.from({ length: maxCount + 1 }, (_, index) => index)
+        : (() => {
+            for (let count = exactCount; count >= 0; count -= 1) {
+              for (let used = 0; used <= cappedCapacity; used += 1) {
+                if (dp[itemCount][count][used] > -Infinity) return [count];
+              }
+            }
+            return [0];
+          })();
+
+      let bestCount = candidateCounts[0];
+      let bestCapacity = 0;
+      let bestBenefit = -Infinity;
+      candidateCounts.forEach((count) => {
+        for (let used = 0; used <= cappedCapacity; used += 1) {
+          if (dp[itemCount][count][used] > bestBenefit) {
+            bestBenefit = dp[itemCount][count][used];
+            bestCapacity = used;
+            bestCount = count;
+          }
+        }
+      });
+
+      const chosen = new Set();
+      let count = bestCount;
+      let used = bestCapacity;
+      for (let i = itemCount; i >= 1; i -= 1) {
+        if (!took[i][count][used]) continue;
+        chosen.add(items[i - 1].point.id);
+        used -= items[i - 1].point.value;
+        count -= 1;
+      }
+
+      return chosen;
+    }
+
+    function solveFairnessSingleFacility(items, capacity, targetCount) {
+      const cappedCapacity = Math.max(0, Math.min(capacity, totalDemandAmount()));
+      const preferredCount = Math.min(targetCount, items.length);
+      const uniqueThresholds = [...new Set(items.map((item) => item.dist.toFixed(6)))].map(Number).sort((a, b) => a - b);
+      for (let desiredCount = preferredCount; desiredCount >= 0; desiredCount -= 1) {
+        for (const threshold of uniqueThresholds) {
+          const eligible = items.filter((item) => item.dist <= threshold + 1e-9);
+          const itemCount = eligible.length;
+          if (itemCount < desiredCount) continue;
+
+          const reachable = Array.from({ length: itemCount + 1 }, () =>
+            Array.from({ length: desiredCount + 1 }, () => Array(cappedCapacity + 1).fill(false))
+          );
+          const took = Array.from({ length: itemCount + 1 }, () =>
+            Array.from({ length: desiredCount + 1 }, () => Array(cappedCapacity + 1).fill(false))
+          );
+          reachable[0][0][0] = true;
+
+          for (let i = 0; i < itemCount; i += 1) {
+            const weight = eligible[i].point.value;
+            for (let count = 0; count <= desiredCount; count += 1) {
+              for (let used = 0; used <= cappedCapacity; used += 1) {
+                if (!reachable[i][count][used]) continue;
+                reachable[i + 1][count][used] = true;
+                const nextUsed = used + weight;
+                const nextCount = count + 1;
+                if (nextUsed <= cappedCapacity && nextCount <= desiredCount) {
+                  reachable[i + 1][nextCount][nextUsed] = true;
+                  took[i + 1][nextCount][nextUsed] = true;
+                }
+              }
+            }
+          }
+
+          let bestServed = -1;
+          for (let used = cappedCapacity; used >= 0; used -= 1) {
+            if (reachable[itemCount][desiredCount][used]) {
+              bestServed = used;
+              break;
+            }
+          }
+          if (bestServed < 0) continue;
+
+          const chosen = new Set();
+          let count = desiredCount;
+          let used = bestServed;
+          for (let i = itemCount; i >= 1; i -= 1) {
+            if (!took[i][count][used]) continue;
+            chosen.add(eligible[i - 1].point.id);
+            used -= eligible[i - 1].point.value;
+            count -= 1;
+          }
+
+          return chosen;
+        }
+      }
+
+      return new Set();
+    }
+
+    function analyzeSingleFacilityExact(layout = facilities) {
+      const facility = layout[0];
+      const items = demandPoints.map((point) => ({
+        point,
+        dist: distance(point, facility)
+      }));
+      const assignments = [{ points: [], totalDemand: 0, usedCapacity: 0, remainingCapacity: facilityCapacity, remainingSlots: mappedPointCount }];
+      const cap = Math.max(0, Math.min(facilityCapacity, totalDemandAmount()));
+      const targetCount = Math.min(mappedPointCount, items.length);
+      let chosenIds;
+
+      if (objectiveMode === "weighted_sum") {
+        chosenIds = solveKnapsack(items, cap, (item) => item.point.value * (UNSERVED_DISTANCE_PENALTY - item.dist), targetCount);
+      } else if (objectiveMode === "coverage") {
+        chosenIds = solveKnapsack(items, cap, (item) => (item.dist <= COVERAGE_RADIUS ? item.point.value * 100000 : 0) - item.dist, targetCount);
+      } else {
+        chosenIds = solveFairnessSingleFacility(items, cap, targetCount);
+      }
+
+      let weightedSum = 0;
+      let maxDistance = 0;
+      let coveredDemand = 0;
+      const unservedPoints = [];
+
+      items.forEach((item) => {
+        if (chosenIds.has(item.point.id)) {
+          assignments[0].points.push({
+            point: item.point,
+            dist: item.dist,
+            weightedDist: item.point.value * item.dist
+          });
+          assignments[0].totalDemand += item.point.value;
+          assignments[0].usedCapacity += item.point.value;
+          assignments[0].remainingSlots -= 1;
+          weightedSum += item.point.value * item.dist;
+          maxDistance = Math.max(maxDistance, item.dist);
+          if (item.dist <= COVERAGE_RADIUS) coveredDemand += item.point.value;
+        } else {
+          unservedPoints.push(item.point);
+          weightedSum += item.point.value * UNSERVED_DISTANCE_PENALTY;
+        }
+      });
+
+      assignments[0].remainingCapacity = facilityCapacity - assignments[0].usedCapacity;
+      assignments[0].points.sort((a, b) => a.dist - b.dist);
+      const unservedDemand = unservedPoints.reduce((sum, point) => sum + point.value, 0);
+      const score = objectiveMode === "weighted_sum"
+        ? weightedSum
+        : objectiveMode === "max_distance"
+          ? maxDistance + (unservedDemand * UNSERVED_DISTANCE_PENALTY)
+          : coveredDemand;
+
+      return { score, weightedSum, maxDistance, coveredDemand, assignments, unservedPoints, unservedDemand };
+    }
+
+    function analyzeLayout(layout = facilities) {
+      if (layout.length === 1) {
+        return analyzeSingleFacilityExact(layout);
+      }
+
+      return analyzeGreedyLayout(layout);
+    }
+
+    function renderDemandPoints(assignments) {
+      const assignmentInfoById = new Map();
+      assignments.forEach((assignment, index) => {
+        assignment.points.forEach((item) => assignmentInfoById.set(item.point.id, {
+          assignmentIndex: index,
+          covered: item.dist <= COVERAGE_RADIUS
+        }));
+      });
+
+      demandLayer.innerHTML = "";
+      demandPoints.forEach((point) => {
+        const el = document.createElement("div");
+        const assignmentInfo = assignmentInfoById.get(point.id);
+        if (!assignmentInfo) {
+          el.className = "point demand single-mode uncovered";
+          el.dataset.id = point.id;
+          el.style.left = `${pointToPercent(point.x)}%`;
+          el.style.bottom = `${pointToPercent(point.y)}%`;
+          el.title = `Demand ${point.value} at ${formatCoord(point)} • unserved because no facility has enough remaining capacity or point slots`;
+          el.textContent = point.value;
+          demandLayer.appendChild(el);
+          return;
+        }
+        const assignmentIndex = assignmentInfo.assignmentIndex;
+        const coverageClass = objectiveMode === "coverage"
+          ? (assignmentInfo.covered ? "covered" : "uncovered")
+          : "covered";
+        const assignmentClass = facilityCount === 1 ? "single-mode" : `assigned-${assignmentIndex}`;
+        el.className = `point demand ${assignmentClass} ${coverageClass} served-point`;
+        el.dataset.id = point.id;
+        el.dataset.facility = FACILITY_LABELS[assignmentIndex];
+        el.style.left = `${pointToPercent(point.x)}%`;
+        el.style.bottom = `${pointToPercent(point.y)}%`;
+        el.title = objectiveMode === "coverage"
+          ? `Demand ${point.value} at ${formatCoord(point)} • served by facility ${FACILITY_LABELS[assignmentIndex]} • ${assignmentInfo.covered ? "covered" : "outside coverage radius"}`
+          : `Demand ${point.value} at ${formatCoord(point)} • served by facility ${FACILITY_LABELS[assignmentIndex]}`;
+        el.textContent = point.value;
+        demandLayer.appendChild(el);
+      });
+    }
+
+    function renderFacilities() {
+      facilityLayer.innerHTML = "";
+
+      facilities.forEach((facility, index) => {
+        const el = document.createElement("div");
+        el.className = `point facility-marker facility-${index} ${index === activeFacilityIndex ? "active" : ""}`.trim();
+        el.dataset.index = String(index);
+        el.style.left = `${pointToPercent(facility.x)}%`;
+        el.style.bottom = `${pointToPercent(facility.y)}%`;
+        el.innerHTML = `<div class="facility-shape">${facility.label}</div>`;
+        el.title = `Facility ${facility.label} at ${formatCoord(facility)}`;
+        el.addEventListener("pointerdown", (event) => startFacilityDrag(index, event));
+        el.addEventListener("click", () => selectFacility(index));
+        facilityLayer.appendChild(el);
+      });
+    }
+
+    function selectFacility(index) {
+      activeFacilityIndex = index;
+      refreshBoard();
+    }
+
+    function facilityColor(index) {
+      return index === 0 ? "#ff7b8a" : index === 1 ? "#2ed4c5" : "#7ca8ff";
+    }
+
+    function drawConnectors(assignments) {
+      lineSvg.innerHTML = "";
+
+      assignments.forEach((assignment, facilityIndex) => {
+        if (!assignment || assignment.points.length === 0) return;
+
+        assignment.points.slice(0, Math.min(mappedPointCount, assignment.points.length)).forEach((item, index) => {
+          const line = document.createElementNS(svgNS, "line");
+          const isActiveFacility = facilityIndex === activeFacilityIndex;
+          line.setAttribute("x1", `${pointToPercent(facilities[facilityIndex].x)}%`);
+          line.setAttribute("y1", `${100 - pointToPercent(facilities[facilityIndex].y)}%`);
+          line.setAttribute("x2", `${pointToPercent(item.point.x)}%`);
+          line.setAttribute("y2", `${100 - pointToPercent(item.point.y)}%`);
+          line.setAttribute("stroke", facilityColor(facilityIndex));
+          line.setAttribute("stroke-width", isActiveFacility ? (index === 0 ? "2.8" : "1.9") : (index === 0 ? "2.2" : "1.4"));
+          line.setAttribute("stroke-dasharray", index === 0 ? "8 6" : "6 6");
+          line.setAttribute("stroke-linecap", "round");
+          line.setAttribute("opacity", `${isActiveFacility ? Math.max(0.5, 0.92 - index * 0.14) : Math.max(0.26, 0.52 - index * 0.08)}`);
+          lineSvg.appendChild(line);
+        });
+      });
+    }
+
+    function renderFacilityList(assignments) {
+      nearestListEl.innerHTML = "";
+      facilities.forEach((facility, index) => {
+        const assignment = assignments[index];
+        const row = document.createElement("button");
+        row.type = "button";
+        row.className = `nearest-item ${index === activeFacilityIndex ? "active" : ""}`.trim();
+        row.innerHTML = `
+          <div>
+            <strong>Facility ${facility.label} ${formatCoord(facility)}</strong>
+            <div class="nearest-item-meta">${assignment.points.length} points assigned • demand ${assignment.totalDemand} • used ${assignment.usedCapacity}/${facilityCapacity}</div>
+          </div>
+          <div>${assignment.points.length === 0 ? "idle" : assignment.points[0].dist.toFixed(2) + " min"}</div>
+        `;
+        row.addEventListener("click", () => selectFacility(index));
+        nearestListEl.appendChild(row);
+      });
+    }
+
+    function totalDemandAmount() {
+      return demandPoints.reduce((sum, point) => sum + point.value, 0);
+    }
+
+    function isBetterScore(score, bestScore) {
+      return objectiveMode === "coverage" ? score > bestScore : score < bestScore;
+    }
+
+    function currentQuality(totalScore) {
+      const totalDemand = demandPoints.reduce((sum, point) => sum + point.value, 0);
+      return totalScore / Math.max(totalDemand, 1);
+    }
+
+    function reactionForScore(metrics, optimalResult) {
+      const score = metrics.score;
+      if (optimalResult) {
+        const benchmarkLabel = optimalResult.method === "exact" ? "exact optimum" : "current best-found benchmark";
+        const gapPct = objectiveMode === "coverage"
+          ? ((optimalResult.score - score) / Math.max(optimalResult.score, 1)) * 100
+          : ((score - optimalResult.score) / Math.max(optimalResult.score, 1)) * 100;
+        if (gapPct < 0.01) return { emoji: "🏆", title: "Top benchmark match", copy: `This layout matches the ${benchmarkLabel} for the current map, facility count, objective, and capacity.` };
+        if (gapPct < 2) return { emoji: "🤩", title: "Extremely close", copy: `This layout is within ${gapPct.toFixed(1)}% of the ${benchmarkLabel}.` };
+        if (gapPct < 5) return { emoji: "😄", title: "Very competitive", copy: `This layout is within ${gapPct.toFixed(1)}% of the ${benchmarkLabel}.` };
+        if (gapPct < 10) return { emoji: "🙂", title: "Reasonably close", copy: `This layout is within ${gapPct.toFixed(1)}% of the ${benchmarkLabel}, but not best.` };
+        if (gapPct < 20) return { emoji: "😐", title: "Noticeably off best", copy: `This layout is ${gapPct.toFixed(1)}% away from the ${benchmarkLabel}.` };
+        if (gapPct < 35) return { emoji: "😬", title: "Far from best", copy: `This layout is ${gapPct.toFixed(1)}% away from the ${benchmarkLabel}.` };
+        return { emoji: "🥶", title: "Well off best", copy: `This layout is ${gapPct.toFixed(1)}% away from the ${benchmarkLabel} for this map.` };
+      }
+
+      if (objectiveMode === "weighted_sum") {
+        const average = currentQuality(metrics.weightedSum);
+        if (average < 5.5) return { emoji: "🤯", title: "Super efficient", copy: "This is an exceptionally tight weighted-service layout. No exact benchmark has been computed yet." };
+        if (average < 7) return { emoji: "🤩", title: "Excellent coverage", copy: "Your facilities are staying very close to weighted demand. No exact benchmark has been computed yet." };
+        if (average < 9) return { emoji: "😄", title: "Strong layout", copy: "This layout is serving demand efficiently. No exact benchmark has been computed yet." };
+        if (average < 11) return { emoji: "🙂", title: "Pretty solid", copy: "Good coverage, though a few demand pockets could still be improved. No exact benchmark has been computed yet." };
+        return { emoji: "😐", title: "Serviceable", copy: "This layout works, but an exact benchmark has not been computed yet." };
+      }
+      if (objectiveMode === "max_distance") {
+        if (metrics.maxDistance < 6) return { emoji: "🤩", title: "Very fair", copy: "No demand point is very far from a facility. No exact benchmark yet." };
+        if (metrics.maxDistance < 9) return { emoji: "🙂", title: "Fairly balanced", copy: "Worst-case service is decent. No exact benchmark yet." };
+        return { emoji: "😬", title: "Uneven service", copy: "At least one demand point is still quite far away. No exact benchmark yet." };
+      }
+      const coveragePct = (metrics.coveredDemand / Math.max(totalDemandAmount(), 1)) * 100;
+      if (coveragePct > 90) return { emoji: "🤩", title: "Huge coverage", copy: "Most weighted demand lies within the service radius. No exact benchmark yet." };
+      if (coveragePct > 75) return { emoji: "🙂", title: "Good coverage", copy: "A solid share of demand is inside the service radius. No exact benchmark yet." };
+      return { emoji: "😬", title: "Limited coverage", copy: "A lot of weighted demand still falls outside the service radius. No exact benchmark yet." };
+    }
+
+    function exactBestSingleFacility() {
+      let best = null;
+      for (let x = 0; x <= GRID_MAX; x += 1) {
+        for (let y = 0; y <= GRID_MAX; y += 1) {
+          const candidate = [{ x, y, label: "A" }];
+          const score = analyzeLayout(candidate).score;
+          if (!best || isBetterScore(score, best.score)) {
+            best = { score, facilities: candidate, method: "exact" };
+          }
+        }
+      }
+      return best;
+    }
+
+    function exactBestThreeFacilitiesOnDemandSites() {
+      const candidates = demandPoints.map((point) => ({ x: point.x, y: point.y }));
+      let best = null;
+
+      for (let i = 0; i < candidates.length - 2; i += 1) {
+        for (let j = i + 1; j < candidates.length - 1; j += 1) {
+          for (let k = j + 1; k < candidates.length; k += 1) {
+            const layout = [
+              { x: candidates[i].x, y: candidates[i].y, label: "A" },
+              { x: candidates[j].x, y: candidates[j].y, label: "B" },
+              { x: candidates[k].x, y: candidates[k].y, label: "C" }
+            ];
+            const score = analyzeLayout(layout).score;
+            if (!best || isBetterScore(score, best.score)) {
+              best = { score, facilities: layout, method: "candidate_exact" };
+            }
+          }
+        }
+      }
+
+      return best;
+    }
+
+    function refineFacilitiesOnGrid(initialFacilities) {
+      const layout = initialFacilities.map((facility, index) => ({
+        x: facility.x,
+        y: facility.y,
+        label: FACILITY_LABELS[index]
+      }));
+
+      let bestScore = analyzeLayout(layout).score;
+      let improved = true;
+
+      while (improved) {
+        improved = false;
+
+        for (let facilityIndex = 0; facilityIndex < layout.length; facilityIndex += 1) {
+          let bestPosition = { x: layout[facilityIndex].x, y: layout[facilityIndex].y };
+
+          for (let x = 0; x <= GRID_MAX; x += 1) {
+            for (let y = 0; y <= GRID_MAX; y += 1) {
+              const candidate = layout.map((facility, index) => (
+                index === facilityIndex ? { ...facility, x, y } : { ...facility }
+              ));
+              const candidateScore = analyzeLayout(candidate).score;
+              if (isBetterScore(candidateScore, bestScore)) {
+                bestScore = candidateScore;
+                bestPosition = { x, y };
+                improved = true;
+              }
+            }
+          }
+
+          layout[facilityIndex] = { ...layout[facilityIndex], ...bestPosition };
+        }
+      }
+
+      return { score: bestScore, facilities: layout, method: "best_found" };
+    }
+
+    function getOptimalResult() {
+      const key = currentOptimalCacheKey();
+      if (!optimalCache[key]) {
+        if (facilityCount === 1) {
+          optimalCache[key] = exactBestSingleFacility();
+        } else {
+          const seed = exactBestThreeFacilitiesOnDemandSites();
+          optimalCache[key] = refineFacilitiesOnGrid(seed.facilities);
+        }
+      }
+      return optimalCache[key];
+    }
+
+    function showOptimalLayout() {
+      optimizeBtn.disabled = true;
+      optimizeBtn.textContent = facilityCount === 1 ? "Computing Optimal 1-Facility Layout..." : "Computing Best 3-Facility Layout...";
+
+      window.setTimeout(() => {
+        const result = getOptimalResult();
+        setFacilities(result.facilities);
+        statusMessageEl.lastElementChild.textContent = facilityCount === 1
+          ? `Optimal 1-facility layout shown at ${formatCoord(result.facilities[0])}.`
+          : "Best found 3-facility layout shown using exhaustive demand-point seeds plus local grid refinement.";
+      }, 20);
+    }
+
+    function updateObjectiveCopy() {
+      facilityModeValueEl.textContent = `${facilityCount} ${facilityCount === 1 ? "facility" : "facilities"}`;
+      if (objectiveMode === "weighted_sum") {
+        objectiveSummaryEl.textContent = facilityCount === 1
+          ? "Efficiency objective: minimize the weighted distance from each served demand point to the single facility, while penalizing demand that cannot fit within capacity."
+          : "Efficiency objective: minimize the weighted distance from each served demand point to its closest of the three facilities, while penalizing demand that cannot fit within capacity.";
+        objectiveFormulaEl.textContent = facilityCount === 1
+          ? "Minimize: sum over served demand of (value x distance) plus a penalty for unserved demand"
+          : "Minimize: sum over served demand of (value x distance to closest facility) plus a penalty for unserved demand";
+      } else if (objectiveMode === "max_distance") {
+        objectiveSummaryEl.textContent = "Fairness objective: minimize the worst-served demand point by reducing the maximum distance to a closest feasible facility, while heavily penalizing unserved demand.";
+        objectiveFormulaEl.textContent = "Minimize: the largest assignment distance, with a large penalty if some demand cannot be assigned";
+      } else {
+        objectiveSummaryEl.textContent = `Coverage objective: maximize total demand covered within ${COVERAGE_RADIUS} units of a facility, subject to capacity limits at each site.`;
+        objectiveFormulaEl.textContent = `Maximize: total assigned demand with distance to closest facility less than or equal to ${COVERAGE_RADIUS}`;
+      }
+      optimizeBtn.textContent = facilityCount === 1 ? "Show Optimal 1-Facility Layout" : "Show Best 3-Facility Layout";
+      optimizeBtn.disabled = false;
+      optimizeBtn.title = facilityCount === 1
+        ? "Search every integer grid point for the best single-facility layout under the selected objective, capacity, and served-point target."
+        : "Search demand-point triples, then refine on the full grid to find a strong 3-facility layout under the selected objective, capacity, and served-point target.";
+      clusterSummaryEl.textContent = facilityCount === 1
+        ? `The one facility tries to serve exactly ${mappedPointCount} demand point${mappedPointCount === 1 ? "" : "s"} when feasible, while staying within capacity. The dashed lines show those served points.`
+        : `Each facility can serve up to ${mappedPointCount} demand point${mappedPointCount === 1 ? "" : "s"} while staying within capacity. The dashed lines show the served points for each facility.`;
+
+      if (objectiveMode === "weighted_sum" && facilityCount === 1) {
+        objectiveContextTitleEl.textContent = "Efficiency with 1 Facility";
+        objectiveContextCopyEl.textContent = `Here, efficiency means placing one facility so the total weighted travel from the ${mappedPointCount} served demand point${mappedPointCount === 1 ? "" : "s"} is as small as possible, while keeping total assigned demand at or below the capacity limit of ${facilityCapacity}. If exactly ${mappedPointCount} points cannot fit, the app falls back to the largest feasible count and penalizes the shortfall.`;
+      } else if (objectiveMode === "weighted_sum" && facilityCount === 3) {
+        objectiveContextTitleEl.textContent = "Efficiency with 3 Facilities";
+        objectiveContextCopyEl.textContent = `With three facilities, efficiency means placing the three sites so that each demand point goes to the closest facility that still has room under the capacity limit of ${facilityCapacity}. The goal is to minimize total weighted travel while also avoiding unserved demand when one facility fills up and another must take the load.`;
+      } else if (objectiveMode === "max_distance" && facilityCount === 1) {
+        objectiveContextTitleEl.textContent = "Fairness with 1 Facility";
+        objectiveContextCopyEl.textContent = `With one facility, fairness means choosing up to ${mappedPointCount} served demand point${mappedPointCount === 1 ? "" : "s"} so that the farthest assigned one is as close as possible while staying within capacity ${facilityCapacity}. If the full ${mappedPointCount} cannot fit, the shortfall is treated as a bad outcome.`;
+      } else if (objectiveMode === "max_distance" && facilityCount === 3) {
+        objectiveContextTitleEl.textContent = "Fairness with 3 Facilities";
+        objectiveContextCopyEl.textContent = `With three facilities, fairness means spreading the sites so no assigned demand point is left extremely far from service, while each facility stays within the capacity limit of ${facilityCapacity}. The optimizer focuses on shrinking the longest assignment distance anywhere on the map and strongly disfavors leaving demand unassigned.`;
+      } else if (objectiveMode === "coverage" && facilityCount === 1) {
+        objectiveContextTitleEl.textContent = "Coverage with 1 Facility";
+        objectiveContextCopyEl.textContent = `With one facility, coverage means trying to place that single site so it reaches the best possible set of ${mappedPointCount} demand point${mappedPointCount === 1 ? "" : "s"} within the ${COVERAGE_RADIUS}-unit service radius, up to the capacity limit of ${facilityCapacity}. Even if many points are nearby, only points that fit within both the point target and the capacity limit can count as covered.`;
+      } else {
+        objectiveContextTitleEl.textContent = "Coverage with 3 Facilities";
+        objectiveContextCopyEl.textContent = `With three facilities, coverage means using the three sites to capture as much weighted demand as possible within the ${COVERAGE_RADIUS}-unit service radius, while no facility serves more than ${facilityCapacity} demand. A point only counts when it is both close enough and assigned to a facility that still has room.`;
+      }
+    }
+
+    function refreshBoard() {
+      updateObjectiveCopy();
+      const metrics = analyzeLayout();
+      const { score, weightedSum, maxDistance, coveredDemand, assignments, unservedPoints } = metrics;
+      const optimalResult = optimalCache[currentOptimalCacheKey()];
+      const activeFacility = facilities[activeFacilityIndex];
+      const activeAssignment = assignments[activeFacilityIndex];
+      const nearestItem = activeAssignment.points[0];
+      const reaction = reactionForScore(metrics, optimalResult);
+      const totalServedDemand = assignments.reduce((sum, assignment) => sum + assignment.totalDemand, 0);
+      const totalDemand = totalDemandAmount();
+
+      renderDemandPoints(assignments);
+      renderFacilities();
+      drawConnectors(assignments);
+      renderFacilityList(assignments);
+
+      facilityCoordEl.textContent = `${activeFacility.label} ${formatCoord(activeFacility)}`;
+      nearestCoordEl.textContent = nearestItem ? formatCoord(nearestItem.point) : "--";
+      nearestWeightEl.textContent = nearestItem ? nearestItem.point.value : "-";
+      nearestDistanceEl.textContent = nearestItem ? nearestItem.dist.toFixed(2) : "--";
+      clusterScoreEl.textContent = objectiveMode === "coverage" ? coveredDemand.toFixed(0) : score.toFixed(2);
+      clusterScoreSubtextEl.textContent = objectiveMode === "coverage"
+        ? `covered demand within ${COVERAGE_RADIUS} units • ${assignments.reduce((sum, assignment) => sum + assignment.points.length, 0)} point${assignments.reduce((sum, assignment) => sum + assignment.points.length, 0) === 1 ? "" : "s"} served`
+        : objectiveMode === "max_distance"
+          ? `worst feasible assignment distance • ${assignments.reduce((sum, assignment) => sum + assignment.points.length, 0)} point${assignments.reduce((sum, assignment) => sum + assignment.points.length, 0) === 1 ? "" : "s"} served`
+          : `weighted assignment cost • ${assignments.reduce((sum, assignment) => sum + assignment.points.length, 0)} point${assignments.reduce((sum, assignment) => sum + assignment.points.length, 0) === 1 ? "" : "s"} served`;
+      moodBadgeEl.textContent = `${facilityCount} ${facilityCount === 1 ? "facility" : "facilities"} active`;
+      reactionBadgeEl.textContent = objectiveMode === "coverage"
+        ? `${reaction.emoji} Covered demand ${coveredDemand.toFixed(0)}`
+        : objectiveMode === "max_distance"
+          ? `${reaction.emoji} Worst distance ${maxDistance.toFixed(2)}`
+          : `${reaction.emoji} Weighted score ${weightedSum.toFixed(0)}`;
+      reactionEmojiEl.textContent = reaction.emoji;
+      reactionTitleEl.textContent = reaction.title;
+      reactionCopyEl.textContent = reaction.copy;
+      statusMessageEl.lastElementChild.textContent = facilityCount === 1
+        ? `Drag the site or click Show Optimal to compare your placement against the exact best one-site solution. The current target is ${mappedPointCount} served demand point${mappedPointCount === 1 ? "" : "s"} within capacity ${facilityCapacity}. Right now the layout serves ${activeAssignment.points.length} point${activeAssignment.points.length === 1 ? "" : "s"} with total demand ${totalServedDemand}${unservedPoints.length ? `, leaving ${unservedPoints.length} demand point${unservedPoints.length === 1 ? "" : "s"} unserved` : ""}.`
+        : `Drag any site or click Show Best to compare your layout against the best found three-site solution. Each facility can serve up to ${mappedPointCount} point${mappedPointCount === 1 ? "" : "s"} within capacity ${facilityCapacity}. Right now the layout serves ${assignments.reduce((sum, assignment) => sum + assignment.points.length, 0)} point${assignments.reduce((sum, assignment) => sum + assignment.points.length, 0) === 1 ? "" : "s"} with total demand ${totalServedDemand}${unservedPoints.length ? `, leaving ${unservedPoints.length} demand point${unservedPoints.length === 1 ? "" : "s"} unserved` : ""}.`;
+      tooltipEl.textContent = nearestItem
+        ? `Facility ${activeFacility.label} is currently at ${formatCoord(activeFacility)} and is using ${activeAssignment.usedCapacity}/${facilityCapacity} capacity across ${activeAssignment.points.length}/${mappedPointCount} target point${mappedPointCount === 1 ? "" : "s"}. Its closest assigned demand point is ${formatCoord(nearestItem.point)} at ${nearestItem.dist.toFixed(2)} units. The dashed lines show the points this facility is actually serving.`
+        : `Facility ${activeFacility.label} is currently at ${formatCoord(activeFacility)} and has no assigned demand points. This can happen if other facilities absorb the nearby demand or if capacity limits make assignments infeasible.`;
+      if (optimalResult) {
+        objectiveSummaryEl.textContent += facilityCount === 1
+          ? ` Exact best score for this map, facility count, and objective: ${optimalResult.score.toFixed(objectiveMode === "coverage" ? 0 : 2)}.`
+          : ` Best found score for this map, facility count, and objective: ${optimalResult.score.toFixed(objectiveMode === "coverage" ? 0 : 2)}.`;
+      }
+    }
+
+    function moveFacility(index, position) {
+      facilities[index] = { ...facilities[index], x: position.x, y: position.y };
+      activeFacilityIndex = index;
+      refreshBoard();
+    }
+
+    function startFacilityDrag(index, event) {
+      event.stopPropagation();
+      activeFacilityIndex = index;
+      draggingFacilityIndex = index;
+      isDragging = true;
+      board.setPointerCapture(event.pointerId);
+      moveFacility(index, positionFromPointer(event));
+    }
+
+    function startBoardInteraction(event) {
+      if (event.target.closest(".facility-marker")) return;
+      draggingFacilityIndex = activeFacilityIndex;
+      isDragging = true;
+      board.setPointerCapture(event.pointerId);
+      moveFacility(draggingFacilityIndex, positionFromPointer(event));
+    }
+
+    function moveDrag(event) {
+      if (!isDragging || draggingFacilityIndex === null) return;
+      moveFacility(draggingFacilityIndex, positionFromPointer(event));
+    }
+
+    function endDrag(event) {
+      if (!isDragging) return;
+      isDragging = false;
+      draggingFacilityIndex = null;
+      if (event.pointerId !== undefined && board.hasPointerCapture(event.pointerId)) {
+        board.releasePointerCapture(event.pointerId);
+      }
+    }
+
+    function resetBoard() {
+      generateDemandPoints();
+      optimalCache = {};
+      activeFacilityIndex = 0;
+      setFacilities(defaultFacilities(facilityCount));
+    }
+
+    function centerLayout() {
+      activeFacilityIndex = 0;
+      setFacilities(defaultFacilities(facilityCount));
+      statusMessageEl.lastElementChild.textContent = facilityCount === 1
+        ? "The facility was moved back to the center."
+        : "The three-facility layout was reset to the centered starter arrangement.";
+    }
+
+    function updateFacilityCount() {
+      facilityCount = Number(facilityCountSelect.value);
+      activeFacilityIndex = 0;
+      setFacilities(defaultFacilities(facilityCount));
+    }
+
+    function updateObjectiveMode() {
+      objectiveMode = objectiveModeSelect.value;
+      refreshBoard();
+    }
+
+    function updateMappedPointCount() {
+      mappedPointCount = Number(mappedPointCountSelect.value);
+      optimalCache = {};
+      refreshBoard();
+    }
+
+    function updateFacilityCapacity() {
+      facilityCapacity = Math.max(1, Math.round(Number(facilityCapacityInput.value) || 1));
+      facilityCapacityInput.value = String(facilityCapacity);
+      optimalCache = {};
+      refreshBoard();
+    }
+
+    shuffleBtn.addEventListener("click", resetBoard);
+    centerBtn.addEventListener("click", centerLayout);
+    optimizeBtn.addEventListener("click", showOptimalLayout);
+    themeToggle.addEventListener("click", () => {
+      const nextTheme = root.dataset.theme === "dark" ? "light" : "dark";
+      localStorage.setItem(THEME_KEY, nextTheme);
+      applyTheme(nextTheme);
+    });
+    facilityCountSelect.addEventListener("change", updateFacilityCount);
+    objectiveModeSelect.addEventListener("change", updateObjectiveMode);
+    mappedPointCountSelect.addEventListener("change", updateMappedPointCount);
+    facilityCapacityInput.addEventListener("input", updateFacilityCapacity);
+    zoomOutBtn.addEventListener("click", () => setBoardZoom(boardZoom - ZOOM_STEP));
+    zoomInBtn.addEventListener("click", () => setBoardZoom(boardZoom + ZOOM_STEP));
+    zoomResetBtn.addEventListener("click", () => setBoardZoom(1));
+    board.addEventListener("pointerdown", startBoardInteraction);
+    board.addEventListener("pointermove", moveDrag);
+    board.addEventListener("pointerup", endDrag);
+    board.addEventListener("pointerleave", endDrag);
+
+    initializeTheme();
+    applyBoardZoom();
+    createAxisLabels();
+    resetBoard();
+  </script>
+</body>
+</html>
