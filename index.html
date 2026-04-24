@@ -176,6 +176,24 @@
       gap: 16px;
     }
 
+    .control-card {
+      position: sticky;
+      top: 18px;
+      z-index: 4;
+      background: linear-gradient(135deg, rgba(29, 154, 138, 0.16), rgba(255, 111, 60, 0.12));
+      box-shadow: 0 20px 40px rgba(25, 53, 64, 0.12);
+    }
+
+    .control-card h2 {
+      margin-bottom: 6px;
+    }
+
+    .control-lead {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
     .metrics {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -882,6 +900,10 @@
       .board-layout {
         grid-template-columns: 1fr;
       }
+
+      .control-card {
+        position: static;
+      }
     }
 
     @media (max-width: 640px) {
@@ -925,6 +947,48 @@
 
     <section class="layout">
       <aside class="panel sidebar">
+        <section class="card control-card">
+          <h2>Start Here</h2>
+          <p class="control-lead">Pick the facility count, objective, served-point target, and capacity before exploring the board.</p>
+          <div class="controls">
+            <div class="input-row">
+              <div class="select-wrap">
+                <label for="facilityCount">Locate</label>
+                <select id="facilityCount">
+                  <option value="1" selected>1 facility</option>
+                  <option value="3">3 facilities</option>
+                </select>
+              </div>
+              <div class="select-wrap">
+                <label for="objectiveMode">Objective</label>
+                <select id="objectiveMode">
+                  <option value="weighted_sum" selected>Efficiency</option>
+                  <option value="max_distance">Fairness</option>
+                  <option value="coverage">Coverage</option>
+                </select>
+              </div>
+              <div class="select-wrap">
+                <label for="mappedPointCount">Serve points</label>
+                <select id="mappedPointCount">
+                  <option value="1">1 point</option>
+                  <option value="3" selected>3 points</option>
+                  <option value="5">5 points</option>
+                  <option value="10">10 points</option>
+                </select>
+              </div>
+              <div class="select-wrap">
+                <label for="facilityCapacity">Capacity</label>
+                <input id="facilityCapacity" type="number" min="1" step="1" value="180" />
+              </div>
+            </div>
+            <div class="button-row">
+              <button class="glow" id="optimizeBtn">Show Optimal 1-Facility Layout</button>
+              <button class="primary" id="shuffleBtn">New Map</button>
+              <button class="secondary" id="centerBtn">Center Layout</button>
+            </div>
+          </div>
+        </section>
+
         <div class="metrics">
           <article class="metric">
             <span class="label">Facility Mode</span>
@@ -978,47 +1042,6 @@
             </ul>
           </div>
         </details>
-
-        <section class="card">
-          <h2>Facility Controls</h2>
-          <div class="controls">
-            <div class="input-row">
-              <div class="select-wrap">
-                <label for="facilityCount">Locate</label>
-                <select id="facilityCount">
-                  <option value="1" selected>1 facility</option>
-                  <option value="3">3 facilities</option>
-                </select>
-              </div>
-              <div class="select-wrap">
-                <label for="objectiveMode">Objective</label>
-                <select id="objectiveMode">
-                  <option value="weighted_sum" selected>Efficiency</option>
-                  <option value="max_distance">Fairness</option>
-                  <option value="coverage">Coverage</option>
-                </select>
-              </div>
-              <div class="select-wrap">
-                <label for="mappedPointCount">Serve points</label>
-                <select id="mappedPointCount">
-                  <option value="1">1 point</option>
-                  <option value="3" selected>3 points</option>
-                  <option value="5">5 points</option>
-                  <option value="10">10 points</option>
-                </select>
-              </div>
-              <div class="select-wrap">
-                <label for="facilityCapacity">Capacity</label>
-                <input id="facilityCapacity" type="number" min="1" step="1" value="180" />
-              </div>
-            </div>
-            <div class="button-row">
-              <button class="glow" id="optimizeBtn">Show Optimal 1-Facility Layout</button>
-              <button class="primary" id="shuffleBtn">New Map</button>
-              <button class="secondary" id="centerBtn">Center Layout</button>
-            </div>
-          </div>
-        </section>
 
         <details class="card accordion">
           <summary>
