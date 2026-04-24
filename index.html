@@ -722,7 +722,7 @@
       filter: saturate(1.14) brightness(1.04);
     }
 
-    .point.demand.served-point::after {
+    .point.demand.facility-anchor::after {
       content: attr(data-facility);
       position: absolute;
       top: -12px;
@@ -743,23 +743,23 @@
       box-shadow: 0 6px 12px rgba(0, 0, 0, 0.22);
     }
 
-    html[data-theme="light"] .point.demand.served-point::after {
+    html[data-theme="light"] .point.demand.facility-anchor::after {
       background: rgba(25, 53, 64, 0.9);
     }
 
-    .point.demand.served-point.assigned-0::after {
+    .point.demand.facility-anchor.assigned-0::after {
       background: #b81d57;
     }
 
-    .point.demand.served-point.assigned-1::after {
+    .point.demand.facility-anchor.assigned-1::after {
       background: #18786d;
     }
 
-    .point.demand.served-point.assigned-2::after {
+    .point.demand.facility-anchor.assigned-2::after {
       background: #345dc9;
     }
 
-    .point.demand.served-point.single-mode::after {
+    .point.demand.facility-anchor.single-mode::after {
       background: #946200;
       color: #fffdf2;
     }
@@ -1033,7 +1033,7 @@
           </div>
         </section>
 
-        <details class="card accordion" open>
+        <details class="card accordion">
           <summary>
             <h2>How It Calculates</h2>
             <span class="accordion-icon">⌄</span>
@@ -1105,7 +1105,7 @@
               <span>Warm start: the board is ready for exploration.</span>
             </section>
 
-            <details class="card accordion" open>
+            <details class="card accordion">
               <summary>
                 <h2>Facilities</h2>
                 <span class="accordion-icon">⌄</span>
@@ -1184,6 +1184,7 @@
     const MIN_ZOOM = 0.8;
     const MAX_ZOOM = 2.4;
     const ZOOM_STEP = 0.2;
+    const LOCAL_NEIGHBORHOOD_PADDING = 8;
 
     let demandPoints = [];
     let facilityCount = Number(facilityCountSelect.value);
@@ -1329,43 +1330,53 @@
       let weightedSum = 0;
       let maxDistance = 0;
       let coveredDemand = 0;
+      const pointOptions = demandPoints.map((point) => ({
+        point,
+        options: layout
+          .map((facility, index) => ({ index, dist: distance(point, facility) }))
+          .sort((a, b) => a.dist - b.dist)
+      }));
+      const assignedPointIds = new Set();
+
+      assignments.forEach((assignment, facilityIndex) => {
+        const feasibleForFacility = pointOptions
+          .filter((item) => item.options[0].index === facilityIndex)
+          .sort((a, b) => a.options[0].dist - b.options[0].dist || b.point.value - a.point.value);
+
+        for (const item of feasibleForFacility) {
+          if (assignedPointIds.has(item.point.id)) continue;
+          if (assignment.remainingSlots <= 0 || assignment.remainingCapacity < item.point.value) continue;
+
+          assignment.points.push({
+            point: item.point,
+            dist: item.options[0].dist,
+            weightedDist: item.point.value * item.options[0].dist
+          });
+          assignment.totalDemand += item.point.value;
+          assignment.usedCapacity += item.point.value;
+          assignment.remainingCapacity -= item.point.value;
+          assignment.remainingSlots -= 1;
+          assignedPointIds.add(item.point.id);
+        }
+      });
+
       const unservedPoints = [];
-
-      const candidatePoints = demandPoints
-        .map((point) => {
-          const options = layout
-            .map((facility, index) => ({ index, dist: distance(point, facility) }))
-            .sort((a, b) => a.dist - b.dist);
-          const gap = options.length > 1 ? options[1].dist - options[0].dist : Infinity;
-          return { point, options, gap };
-        })
-        .sort((a, b) => b.gap - a.gap || b.point.value - a.point.value || a.options[0].dist - b.options[0].dist);
-
-      for (const item of candidatePoints) {
-        const option = item.options.find((candidate) => {
-          const assignment = assignments[candidate.index];
-          return assignment.remainingCapacity >= item.point.value && assignment.remainingSlots > 0;
-        });
-        if (!option) {
-          unservedPoints.push(item.point);
-          weightedSum += item.point.value * UNSERVED_DISTANCE_PENALTY;
-          maxDistance = Math.max(maxDistance, UNSERVED_DISTANCE_PENALTY);
-          continue;
+      pointOptions.forEach((item) => {
+        const assignedFacilityIndex = assignments.findIndex((assignment) =>
+          assignment.points.some((assignedItem) => assignedItem.point.id === item.point.id)
+        );
+        if (assignedFacilityIndex >= 0) {
+          const assignedItem = assignments[assignedFacilityIndex].points.find((pointItem) => pointItem.point.id === item.point.id);
+          weightedSum += assignedItem.weightedDist;
+          if (assignedItem.dist > maxDistance) maxDistance = assignedItem.dist;
+          if (assignedItem.dist <= COVERAGE_RADIUS) coveredDemand += item.point.value;
+          return;
         }
 
-        assignments[option.index].points.push({
-          point: item.point,
-          dist: option.dist,
-          weightedDist: item.point.value * option.dist
-        });
-        assignments[option.index].totalDemand += item.point.value;
-        assignments[option.index].usedCapacity += item.point.value;
-        assignments[option.index].remainingCapacity -= item.point.value;
-        assignments[option.index].remainingSlots -= 1;
-        weightedSum += item.point.value * option.dist;
-        if (option.dist > maxDistance) maxDistance = option.dist;
-        if (option.dist <= COVERAGE_RADIUS) coveredDemand += item.point.value;
-      }
+        unservedPoints.push(item.point);
+        weightedSum += item.point.value * UNSERVED_DISTANCE_PENALTY;
+        maxDistance = Math.max(maxDistance, UNSERVED_DISTANCE_PENALTY);
+      });
 
       assignments.forEach((assignment) => {
         assignment.points.sort((a, b) => a.dist - b.dist);
@@ -1435,8 +1446,12 @@
       let bestBenefit = -Infinity;
       candidateCounts.forEach((count) => {
         for (let used = 0; used <= cappedCapacity; used += 1) {
-          if (dp[itemCount][count][used] > bestBenefit) {
-            bestBenefit = dp[itemCount][count][used];
+          const candidateBenefit = dp[itemCount][count][used];
+          if (candidateBenefit === -Infinity) continue;
+          const shouldReplace = used > bestCapacity
+            || (used === bestCapacity && candidateBenefit > bestBenefit);
+          if (shouldReplace) {
+            bestBenefit = candidateBenefit;
             bestCapacity = used;
             bestCount = count;
           }
@@ -1454,6 +1469,107 @@
       }
 
       return chosen;
+    }
+
+    function solveClosestSubset(items, capacity, exactCount = null) {
+      const itemCount = items.length;
+      const cappedCapacity = Math.max(0, Math.min(capacity, totalDemandAmount()));
+      const maxCount = exactCount === null ? itemCount : Math.min(exactCount, itemCount);
+      const dp = Array.from({ length: itemCount + 1 }, () =>
+        Array.from({ length: maxCount + 1 }, () => Array(cappedCapacity + 1).fill(Infinity))
+      );
+      const took = Array.from({ length: itemCount + 1 }, () =>
+        Array.from({ length: maxCount + 1 }, () => Array(cappedCapacity + 1).fill(false))
+      );
+
+      dp[0][0][0] = 0;
+
+      for (let i = 0; i < itemCount; i += 1) {
+        const weight = items[i].point.value;
+        const dist = items[i].dist;
+
+        for (let count = 0; count <= maxCount; count += 1) {
+          for (let used = 0; used <= cappedCapacity; used += 1) {
+            if (dp[i][count][used] === Infinity) continue;
+
+            if (dp[i][count][used] < dp[i + 1][count][used]) {
+              dp[i + 1][count][used] = dp[i][count][used];
+            }
+
+            const nextUsed = used + weight;
+            const nextCount = count + 1;
+            if (nextUsed <= cappedCapacity && nextCount <= maxCount) {
+              const candidate = dp[i][count][used] + dist;
+              if (candidate < dp[i + 1][nextCount][nextUsed]) {
+                dp[i + 1][nextCount][nextUsed] = candidate;
+                took[i + 1][nextCount][nextUsed] = true;
+              }
+            }
+          }
+        }
+      }
+
+      const candidateCounts = exactCount === null
+        ? Array.from({ length: maxCount + 1 }, (_, index) => index)
+        : (() => {
+            for (let count = exactCount; count >= 0; count -= 1) {
+              for (let used = 0; used <= cappedCapacity; used += 1) {
+                if (dp[itemCount][count][used] < Infinity) return [count];
+              }
+            }
+            return [0];
+          })();
+
+      let bestCount = candidateCounts[0];
+      let bestCapacity = 0;
+      let bestDistance = Infinity;
+      candidateCounts.forEach((count) => {
+        for (let used = 0; used <= cappedCapacity; used += 1) {
+          const candidateDistance = dp[itemCount][count][used];
+          if (candidateDistance === Infinity) continue;
+          const shouldReplace = used > bestCapacity
+            || (used === bestCapacity && candidateDistance < bestDistance);
+          if (shouldReplace) {
+            bestCount = count;
+            bestCapacity = used;
+            bestDistance = candidateDistance;
+          }
+        }
+      });
+
+      const chosen = new Set();
+      let count = bestCount;
+      let used = bestCapacity;
+      for (let i = itemCount; i >= 1; i -= 1) {
+        if (!took[i][count][used]) continue;
+        chosen.add(items[i - 1].point.id);
+        used -= items[i - 1].point.value;
+        count -= 1;
+      }
+
+      return chosen;
+    }
+
+    function solveHybridClosestSubset(items, capacity, exactCount = null) {
+      const preferredCount = exactCount === null ? items.length : Math.min(exactCount, items.length);
+      const sortedItems = [...items].sort((a, b) => a.dist - b.dist || a.point.value - b.point.value);
+      let bestChosen = new Set();
+
+      for (
+        let neighborhoodSize = Math.min(items.length, Math.max(preferredCount + LOCAL_NEIGHBORHOOD_PADDING, preferredCount));
+        neighborhoodSize <= items.length;
+        neighborhoodSize += 1
+      ) {
+        const chosen = solveClosestSubset(sortedItems.slice(0, neighborhoodSize), capacity, preferredCount);
+        if (chosen.size > bestChosen.size) {
+          bestChosen = chosen;
+        }
+        if (chosen.size === preferredCount) {
+          return chosen;
+        }
+      }
+
+      return bestChosen;
     }
 
     function solveFairnessSingleFacility(items, capacity, targetCount) {
@@ -1528,7 +1644,7 @@
       let chosenIds;
 
       if (objectiveMode === "weighted_sum") {
-        chosenIds = solveKnapsack(items, cap, (item) => item.point.value * (UNSERVED_DISTANCE_PENALTY - item.dist), targetCount);
+        chosenIds = solveHybridClosestSubset(items, cap, targetCount);
       } else if (objectiveMode === "coverage") {
         chosenIds = solveKnapsack(items, cap, (item) => (item.dist <= COVERAGE_RADIUS ? item.point.value * 100000 : 0) - item.dist, targetCount);
       } else {
@@ -1581,7 +1697,11 @@
 
     function renderDemandPoints(assignments) {
       const assignmentInfoById = new Map();
+      const anchorPointIds = new Set();
       assignments.forEach((assignment, index) => {
+        if (assignment.points[0]) {
+          anchorPointIds.add(assignment.points[0].point.id);
+        }
         assignment.points.forEach((item) => assignmentInfoById.set(item.point.id, {
           assignmentIndex: index,
           covered: item.dist <= COVERAGE_RADIUS
@@ -1607,9 +1727,12 @@
           ? (assignmentInfo.covered ? "covered" : "uncovered")
           : "covered";
         const assignmentClass = facilityCount === 1 ? "single-mode" : `assigned-${assignmentIndex}`;
-        el.className = `point demand ${assignmentClass} ${coverageClass} served-point`;
+        const anchorClass = anchorPointIds.has(point.id) ? "facility-anchor" : "";
+        el.className = `point demand ${assignmentClass} ${coverageClass} served-point ${anchorClass}`.trim();
         el.dataset.id = point.id;
-        el.dataset.facility = FACILITY_LABELS[assignmentIndex];
+        if (anchorClass) {
+          el.dataset.facility = FACILITY_LABELS[assignmentIndex];
+        }
         el.style.left = `${pointToPercent(point.x)}%`;
         el.style.bottom = `${pointToPercent(point.y)}%`;
         el.title = objectiveMode === "coverage"
@@ -1858,12 +1981,12 @@
         ? "Search every integer grid point for the best single-facility layout under the selected objective, capacity, and served-point target."
         : "Search demand-point triples, then refine on the full grid to find a strong 3-facility layout under the selected objective, capacity, and served-point target.";
       clusterSummaryEl.textContent = facilityCount === 1
-        ? `The one facility tries to serve exactly ${mappedPointCount} demand point${mappedPointCount === 1 ? "" : "s"} when feasible, while staying within capacity. The dashed lines show those served points.`
+        ? `The one facility looks first at a local neighborhood of nearby demand points, then tries to serve exactly ${mappedPointCount} demand point${mappedPointCount === 1 ? "" : "s"} when feasible while staying within capacity. The dashed lines show those served points.`
         : `Each facility can serve up to ${mappedPointCount} demand point${mappedPointCount === 1 ? "" : "s"} while staying within capacity. The dashed lines show the served points for each facility.`;
 
       if (objectiveMode === "weighted_sum" && facilityCount === 1) {
         objectiveContextTitleEl.textContent = "Efficiency with 1 Facility";
-        objectiveContextCopyEl.textContent = `Here, efficiency means placing one facility so the total weighted travel from the ${mappedPointCount} served demand point${mappedPointCount === 1 ? "" : "s"} is as small as possible, while keeping total assigned demand at or below the capacity limit of ${facilityCapacity}. If exactly ${mappedPointCount} points cannot fit, the app falls back to the largest feasible count and penalizes the shortfall.`;
+        objectiveContextCopyEl.textContent = `Here, efficiency means looking first at a local neighborhood around the facility, then choosing up to ${mappedPointCount} nearby demand point${mappedPointCount === 1 ? "" : "s"} whose total demand gets as close as possible to the capacity limit of ${facilityCapacity}. Within that local set, the app prefers smaller total distance, so dragging the facility should visibly change which nearby points are selected.`;
       } else if (objectiveMode === "weighted_sum" && facilityCount === 3) {
         objectiveContextTitleEl.textContent = "Efficiency with 3 Facilities";
         objectiveContextCopyEl.textContent = `With three facilities, efficiency means placing the three sites so that each demand point goes to the closest facility that still has room under the capacity limit of ${facilityCapacity}. The goal is to minimize total weighted travel while also avoiding unserved demand when one facility fills up and another must take the load.`;
@@ -1920,10 +2043,10 @@
       reactionCopyEl.textContent = reaction.copy;
       statusMessageEl.lastElementChild.textContent = facilityCount === 1
         ? `Drag the site or click Show Optimal to compare your placement against the exact best one-site solution. The current target is ${mappedPointCount} served demand point${mappedPointCount === 1 ? "" : "s"} within capacity ${facilityCapacity}. Right now the layout serves ${activeAssignment.points.length} point${activeAssignment.points.length === 1 ? "" : "s"} with total demand ${totalServedDemand}${unservedPoints.length ? `, leaving ${unservedPoints.length} demand point${unservedPoints.length === 1 ? "" : "s"} unserved` : ""}.`
-        : `Drag any site or click Show Best to compare your layout against the best found three-site solution. Each facility can serve up to ${mappedPointCount} point${mappedPointCount === 1 ? "" : "s"} within capacity ${facilityCapacity}. Right now the layout serves ${assignments.reduce((sum, assignment) => sum + assignment.points.length, 0)} point${assignments.reduce((sum, assignment) => sum + assignment.points.length, 0) === 1 ? "" : "s"} with total demand ${totalServedDemand}${unservedPoints.length ? `, leaving ${unservedPoints.length} demand point${unservedPoints.length === 1 ? "" : "s"} unserved` : ""}.`;
+        : `Facility ${activeFacility.label} is selected. Drag that marker directly, or click Show Best to compare your layout against the best found three-site solution. Each facility can serve up to ${mappedPointCount} point${mappedPointCount === 1 ? "" : "s"} within capacity ${facilityCapacity}. Right now the layout serves ${assignments.reduce((sum, assignment) => sum + assignment.points.length, 0)} point${assignments.reduce((sum, assignment) => sum + assignment.points.length, 0) === 1 ? "" : "s"} with total demand ${totalServedDemand}${unservedPoints.length ? `, leaving ${unservedPoints.length} demand point${unservedPoints.length === 1 ? "" : "s"} unserved` : ""}.`;
       tooltipEl.textContent = nearestItem
-        ? `Facility ${activeFacility.label} is currently at ${formatCoord(activeFacility)} and is using ${activeAssignment.usedCapacity}/${facilityCapacity} capacity across ${activeAssignment.points.length}/${mappedPointCount} target point${mappedPointCount === 1 ? "" : "s"}. Its closest assigned demand point is ${formatCoord(nearestItem.point)} at ${nearestItem.dist.toFixed(2)} units. The dashed lines show the points this facility is actually serving.`
-        : `Facility ${activeFacility.label} is currently at ${formatCoord(activeFacility)} and has no assigned demand points. This can happen if other facilities absorb the nearby demand or if capacity limits make assignments infeasible.`;
+        ? `Facility ${activeFacility.label} is currently at ${formatCoord(activeFacility)} and is using ${activeAssignment.usedCapacity}/${facilityCapacity} capacity across ${activeAssignment.points.length}/${mappedPointCount} target point${mappedPointCount === 1 ? "" : "s"}. Its closest assigned demand point is ${formatCoord(nearestItem.point)} at ${nearestItem.dist.toFixed(2)} units. Drag the ${activeFacility.label} marker itself to move it. The dashed lines show the points this facility is actually serving.`
+        : `Facility ${activeFacility.label} is currently at ${formatCoord(activeFacility)} and has no assigned demand points. Drag the ${activeFacility.label} marker itself to move it. This can happen if other facilities absorb the nearby demand or if capacity limits make assignments infeasible.`;
       if (optimalResult) {
         objectiveSummaryEl.textContent += facilityCount === 1
           ? ` Exact best score for this map, facility count, and objective: ${optimalResult.score.toFixed(objectiveMode === "coverage" ? 0 : 2)}.`
@@ -1948,6 +2071,10 @@
 
     function startBoardInteraction(event) {
       if (event.target.closest(".facility-marker")) return;
+      if (facilityCount > 1) {
+        statusMessageEl.lastElementChild.textContent = `Facility ${FACILITY_LABELS[activeFacilityIndex]} is selected. Drag that marker directly to move it. Clicking empty board space will not reposition facilities in 3-facility mode.`;
+        return;
+      }
       draggingFacilityIndex = activeFacilityIndex;
       isDragging = true;
       board.setPointerCapture(event.pointerId);
