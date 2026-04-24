@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GridQuest: Optimization Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     :root {
       --bg-top: #fff7eb;
@@ -67,7 +70,7 @@
     body {
       margin: 0;
       min-height: 100vh;
-      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
       color: var(--ink);
       background:
         radial-gradient(circle at 15% 10%, rgba(242, 193, 78, 0.34), transparent 20%),
@@ -121,9 +124,11 @@
 
     .title-wrap h1 {
       margin: 0;
+      font-family: "Cormorant Garamond", "Times New Roman", serif;
       font-size: clamp(2.35rem, 5vw, 4.6rem);
-      line-height: 0.92;
-      letter-spacing: -0.05em;
+      line-height: 0.9;
+      letter-spacing: -0.03em;
+      font-weight: 700;
     }
 
     .title-wrap p {
@@ -144,7 +149,7 @@
       border: 1px solid var(--border);
       background: var(--panel-solid);
       box-shadow: 0 10px 24px rgba(25, 53, 64, 0.08);
-      font-weight: 800;
+      font-weight: 700;
       white-space: nowrap;
     }
 
@@ -214,14 +219,14 @@
       text-transform: uppercase;
       letter-spacing: 0.08em;
       font-size: 0.75rem;
-      font-weight: 800;
+      font-weight: 700;
     }
 
     .metric .value {
       font-size: 1.45rem;
-      font-weight: 900;
+      font-weight: 800;
       line-height: 1;
-      letter-spacing: -0.03em;
+      letter-spacing: -0.02em;
     }
 
     .metric .subtext {
@@ -240,7 +245,8 @@
     .card h2 {
       margin: 0 0 10px;
       font-size: 1rem;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.015em;
+      font-weight: 800;
     }
 
     .card p,
